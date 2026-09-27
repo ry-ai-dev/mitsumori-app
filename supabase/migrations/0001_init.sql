@@ -121,3 +121,12 @@ create policy "document_items_delete_own" on document_items
       where d.id = document_items.document_id and d.user_id = auth.uid()
     )
   );
+
+-- ============================================================
+-- テーブルへの基本アクセス権限（GRANT）
+-- RLSポリシーだけでは不十分で「permission denied for table」エラーが
+-- 発生したため、明示的にGRANTを付与する
+-- ============================================================
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
