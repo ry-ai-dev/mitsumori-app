@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import StatusBadge from "@/components/StatusBadge";
-import SubmitButton from "@/components/SubmitButton";
+import PdfDownloadButton from "@/components/PdfDownloadButton";
 import { formatCurrency } from "@/lib/calc";
 import type { DocumentRecord, DocumentStatus, Profile } from "@/lib/types";
 import { STATUS_LABEL, TYPE_LABEL } from "@/lib/types";
@@ -23,7 +23,6 @@ export default function DocumentDetail({ document, profile }: Props) {
 
   const [status, setStatus] = useState<DocumentStatus>(document.status);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const items = document.document_items ?? [];
@@ -50,33 +49,6 @@ export default function DocumentDetail({ document, profile }: Props) {
     router.refresh();
   }
 
-  async function handleDownloadPdf() {
-    if (isDownloading) return; // 二重送信防止（課題1の反省点）
-    setIsDownloading(true);
-    setError(null);
-
-    try {
-      // @react-pdf/renderer はサイズが大きいため、ダウンロード実行時のみ動的読み込みする
-      const [{ pdf }, { default: QuoteInvoicePdf }] = await Promise.all([
-        import("@react-pdf/renderer"),
-        import("@/lib/pdf/QuoteInvoicePdf"),
-      ]);
-      const blob = await pdf(
-        <QuoteInvoicePdf document={{ ...document, status }} profile={profile} />
-      ).toBlob();
-      const url = URL.createObjectURL(blob);
-      const a = window.document.createElement("a");
-      a.href = url;
-      a.download = `${document.doc_number}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      setError("PDFの生成に失敗しました。" + (e instanceof Error ? e.message : ""));
-    } finally {
-      setIsDownloading(false);
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
@@ -92,15 +64,10 @@ export default function DocumentDetail({ document, profile }: Props) {
               請求書に変換
             </Link>
           )}
-          <SubmitButton
-            isSubmitting={isDownloading}
-            submittingLabel="生成中..."
-            className="btn-primary"
-            type="button"
-            onClick={handleDownloadPdf}
-          >
-            PDFダウンロード
-          </SubmitButton>
+          <Link href={`/documents/${document.id}/edit`} className="btn-secondary">
+            編集する
+          </Link>
+          <PdfDownloadButton document={{ ...document, status }} profile={profile} />
         </div>
       </div>
 

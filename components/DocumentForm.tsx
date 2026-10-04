@@ -6,11 +6,12 @@ import { createClient } from "@/lib/supabase/client";
 import SubmitButton from "@/components/SubmitButton";
 import DocumentItemsForm from "@/components/DocumentItemsForm";
 import { calcTotals, formatCurrency, nextDocNumber } from "@/lib/calc";
-import type { Client, DocumentItem, DocumentType } from "@/lib/types";
+import type { Client, DocumentItem, DocumentRecord, DocumentType } from "@/lib/types";
 
 type Props = {
   type: DocumentType;
   clients: Client[];
+  document?: DocumentRecord;
   initialClientId?: string;
   initialItems?: DocumentItem[];
   initialNotes?: string;
@@ -22,6 +23,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 export default function DocumentForm({
   type,
   clients,
+  document,
   initialClientId,
   initialItems,
   initialNotes,
@@ -29,25 +31,31 @@ export default function DocumentForm({
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
+  const isEdit = Boolean(document);
 
-  const [clientId, setClientId] = useState(initialClientId ?? clients[0]?.id ?? "");
-  const [issueDate, setIssueDate] = useState(todayStr());
-  const [dueDate, setDueDate] = useState("");
-  const [notes, setNotes] = useState(initialNotes ?? "");
+  const [clientId, setClientId] = useState(
+    document?.client_id ?? initialClientId ?? clients[0]?.id ?? ""
+  );
+  const [issueDate, setIssueDate] = useState(document?.issue_date ?? todayStr());
+  const [dueDate, setDueDate] = useState(document?.due_date ?? "");
+  const [notes, setNotes] = useState(document?.notes ?? initialNotes ?? "");
   const [items, setItems] = useState<DocumentItem[]>(
-    initialItems && initialItems.length > 0
+    document?.document_items && document.document_items.length > 0
+      ? document.document_items
+      : initialItems && initialItems.length > 0
       ? initialItems
       : [{ description: "", unit_price: 0, quantity: 1, sort_order: 0 }]
   );
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { subtotal, tax, total } = calcTotals(items);
   const label = type === "quote" ? "見積書" : "請求書";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (isSubmitting) return; // 二重送信防止（課題1の反省点）
+    if (isSubmitting || isDeleting) return; // 二重送信防止（課題1の反省点）
     if (!clientId) {
       setError("クライアントを選択してください。先にクライアントを登録してください。");
       return;
@@ -62,6 +70,63 @@ export default function DocumentForm({
     if (!user) {
       setError("ログイン状態を確認できませんでした。再度ログインしてください。");
       setIsSubmitting(false);
+      return;
+    }
+
+    const dueDateValue = type === "invoice" && dueDate ? dueDate : null;
+
+    if (isEdit) {
+      const { error: docError } = await supabase
+        .from("documents")
+        .update({
+          client_id: clientId,
+          issue_date: issueDate,
+          due_date: dueDateValue,
+          notes: notes || null,
+          subtotal,
+          tax,
+          total,
+        })
+        .eq("id", document!.id);
+
+      if (docError) {
+        setError("更新に失敗しました。" + docError.message);
+        setIsSubmitting(false);
+        return;
+      }
+
+      const { error: deleteItemsError } = await supabase
+        .from("document_items")
+        .delete()
+        .eq("document_id", document!.id);
+
+      if (deleteItemsError) {
+        setError("明細の更新に失敗しました。" + deleteItemsError.message);
+        setIsSubmitting(false);
+        return;
+      }
+
+      const itemRows = items
+        .filter((item) => item.description.trim() !== "")
+        .map((item, i) => ({
+          document_id: document!.id,
+          description: item.description,
+          unit_price: item.unit_price,
+          quantity: item.quantity,
+          sort_order: i,
+        }));
+
+      if (itemRows.length > 0) {
+        const { error: itemsError } = await supabase.from("document_items").insert(itemRows);
+        if (itemsError) {
+          setError("明細の保存に失敗しました。" + itemsError.message);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      router.push(`/documents/${document!.id}`);
+      router.refresh();
       return;
     }
 
@@ -82,7 +147,7 @@ export default function DocumentForm({
         doc_number: docNumber,
         status: "draft",
         issue_date: issueDate,
-        due_date: type === "invoice" && dueDate ? dueDate : null,
+        due_date: dueDateValue,
         notes: notes || null,
         subtotal,
         tax,
@@ -118,6 +183,23 @@ export default function DocumentForm({
     }
 
     router.push(`/documents/${doc.id}`);
+    router.refresh();
+  }
+
+  async function handleDelete() {
+    if (!document || isSubmitting || isDeleting) return;
+    if (!confirm(`この${label}を削除しますか？この操作は取り消せません。`)) return;
+    setIsDeleting(true);
+    const { error: deleteError } = await supabase
+      .from("documents")
+      .delete()
+      .eq("id", document.id);
+    if (deleteError) {
+      setError("削除に失敗しました。" + deleteError.message);
+      setIsDeleting(false);
+      return;
+    }
+    router.push("/");
     router.refresh();
   }
 
@@ -211,11 +293,29 @@ export default function DocumentForm({
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="flex gap-2">
-        <SubmitButton isSubmitting={isSubmitting}>{label}を作成する</SubmitButton>
-        <button type="button" className="btn-secondary" onClick={() => router.back()}>
-          キャンセル
-        </button>
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          <SubmitButton isSubmitting={isSubmitting}>
+            {isEdit ? "更新する" : `${label}を作成する`}
+          </SubmitButton>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => router.push(isEdit ? `/documents/${document!.id}` : "/")}
+          >
+            キャンセル
+          </button>
+        </div>
+        {isEdit && (
+          <button
+            type="button"
+            disabled={isDeleting || isSubmitting}
+            onClick={handleDelete}
+            className="btn-danger"
+          >
+            {isDeleting ? "削除中..." : "削除する"}
+          </button>
+        )}
       </div>
     </form>
   );
