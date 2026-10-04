@@ -116,56 +116,67 @@ export default function DocumentDetail({ document, profile }: Props) {
         </div>
       </div>
 
-      <div className="card p-6">
-        <h2 className="text-sm font-semibold mb-3">明細</h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-gray-500 border-b border-gray-100">
-              <th className="py-2 font-medium">品目</th>
-              <th className="py-2 font-medium text-right">単価</th>
-              <th className="py-2 font-medium text-right">数量</th>
-              <th className="py-2 font-medium text-right">金額</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="py-4 text-center text-gray-400">
-                  明細がありません。
-                </td>
+      {document.type === "proposal" ? (
+        <div className="space-y-4">
+          {(document.proposal_sections ?? []).map((section, i) => (
+            <div key={i} className="card p-6">
+              <h2 className="text-sm font-semibold mb-3">{section.heading}</h2>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{section.body}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="card p-6">
+          <h2 className="text-sm font-semibold mb-3">明細</h2>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-500 border-b border-gray-100">
+                <th className="py-2 font-medium">品目</th>
+                <th className="py-2 font-medium text-right">単価</th>
+                <th className="py-2 font-medium text-right">数量</th>
+                <th className="py-2 font-medium text-right">金額</th>
               </tr>
-            ) : (
-              items.map((item, i) => (
-                <tr key={item.id ?? i} className="border-b border-gray-50">
-                  <td className="py-2">{item.description}</td>
-                  <td className="py-2 text-right">{formatCurrency(item.unit_price)}</td>
-                  <td className="py-2 text-right">{item.quantity}</td>
-                  <td className="py-2 text-right">
-                    {formatCurrency(item.unit_price * item.quantity)}
+            </thead>
+            <tbody>
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-4 text-center text-gray-400">
+                    明細がありません。
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                items.map((item, i) => (
+                  <tr key={item.id ?? i} className="border-b border-gray-50">
+                    <td className="py-2">{item.description}</td>
+                    <td className="py-2 text-right">{formatCurrency(item.unit_price)}</td>
+                    <td className="py-2 text-right">{item.quantity}</td>
+                    <td className="py-2 text-right">
+                      {formatCurrency(item.unit_price * item.quantity)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
 
-        <div className="mt-6 border-t border-gray-100 pt-4 flex justify-end">
-          <div className="w-64 space-y-1 text-sm">
-            <div className="flex justify-between text-gray-600">
-              <span>小計</span>
-              <span>{formatCurrency(document.subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-gray-600">
-              <span>消費税（10%）</span>
-              <span>{formatCurrency(document.tax)}</span>
-            </div>
-            <div className="flex justify-between font-semibold text-base pt-1 border-t border-gray-100">
-              <span>合計</span>
-              <span>{formatCurrency(document.total)}</span>
+          <div className="mt-6 border-t border-gray-100 pt-4 flex justify-end">
+            <div className="w-64 space-y-1 text-sm">
+              <div className="flex justify-between text-gray-600">
+                <span>小計</span>
+                <span>{formatCurrency(document.subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>消費税（10%）</span>
+                <span>{formatCurrency(document.tax)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-base pt-1 border-t border-gray-100">
+                <span>合計</span>
+                <span>{formatCurrency(document.total)}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {document.notes && (
         <div className="card p-6">

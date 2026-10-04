@@ -20,12 +20,13 @@ export default function PdfDownloadButton({ document, profile }: Props) {
 
     try {
       // @react-pdf/renderer はサイズが大きいため、ダウンロード実行時のみ動的読み込みする
-      const [{ pdf }, { default: QuoteInvoicePdf }] = await Promise.all([
+      const isProposal = document.type === "proposal";
+      const [{ pdf }, { default: PdfTemplate }] = await Promise.all([
         import("@react-pdf/renderer"),
-        import("@/lib/pdf/QuoteInvoicePdf"),
+        isProposal ? import("@/lib/pdf/ProposalPdf") : import("@/lib/pdf/QuoteInvoicePdf"),
       ]);
       const blob = await pdf(
-        <QuoteInvoicePdf document={document} profile={profile} />
+        <PdfTemplate document={document} profile={profile} />
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const a = window.document.createElement("a");

@@ -1,4 +1,4 @@
-export type DocumentType = "quote" | "invoice";
+export type DocumentType = "quote" | "invoice" | "proposal";
 export type DocumentStatus = "draft" | "sent" | "paid";
 
 export type Client = {
@@ -26,6 +26,11 @@ export type DocumentItem = {
   sort_order: number;
 };
 
+export type ProposalSection = {
+  heading: string;
+  body: string;
+};
+
 export type DocumentRecord = {
   id: string;
   user_id: string;
@@ -43,6 +48,7 @@ export type DocumentRecord = {
   created_at: string;
   clients?: Client;
   document_items?: DocumentItem[];
+  proposal_sections?: ProposalSection[] | null;
 };
 
 export const STATUS_LABEL: Record<DocumentStatus, string> = {
@@ -54,4 +60,5 @@ export const STATUS_LABEL: Record<DocumentStatus, string> = {
 export const TYPE_LABEL: Record<DocumentType, string> = {
   quote: "見積書",
   invoice: "請求書",
+  proposal: "提案書",
 };

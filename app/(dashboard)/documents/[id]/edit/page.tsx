@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import DocumentForm from "@/components/DocumentForm";
+import ProposalForm from "@/components/ProposalForm";
 import type { Client, DocumentRecord } from "@/lib/types";
 import { TYPE_LABEL } from "@/lib/types";
 
@@ -34,11 +35,15 @@ export default async function EditDocumentPage({
   return (
     <div>
       <h1 className="text-xl font-semibold mb-6">{TYPE_LABEL[record.type]}を編集</h1>
-      <DocumentForm
-        type={record.type}
-        clients={(clients ?? []) as Client[]}
-        document={record}
-      />
+      {record.type === "proposal" ? (
+        <ProposalForm clients={(clients ?? []) as Client[]} document={record} />
+      ) : (
+        <DocumentForm
+          type={record.type}
+          clients={(clients ?? []) as Client[]}
+          document={record}
+        />
+      )}
     </div>
   );
 }

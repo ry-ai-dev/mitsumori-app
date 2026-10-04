@@ -22,6 +22,9 @@ export default async function DashboardPage() {
           <Link href="/quotes/new" className="btn-secondary">
             + 見積書を作成
           </Link>
+          <Link href="/proposals/new" className="btn-secondary">
+            + 提案書を作成
+          </Link>
           <Link href="/invoices/new" className="btn-primary">
             + 請求書を作成
           </Link>
